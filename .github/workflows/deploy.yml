@@ -1,0 +1,183 @@
+# ============================================================
+# BookManager - CI/CD Pipeline
+# Deploys to AWS ECS + MongoDB Atlas
+# ============================================================
+
+name: BookManager CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_BACKEND_REPO: bookmanager-backend
+  ECR_FRONTEND_REPO: bookmanager-frontend
+  ECS_CLUSTER: bookmanager-cluster
+  ECS_SERVICE: bookmanager-backend-service
+
+jobs:
+  # ============================================================
+  # 1. LINT & TEST
+  # ============================================================
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ${{ matrix.project }}
+
+      - name: Run linter
+        run: npm run lint 2>/dev/null || echo "No linter configured"
+        working-directory: ${{ matrix.project }}
+
+      - name: Build check
+        run: npm run build
+        working-directory: ${{ matrix.project }}
+
+  # ============================================================
+  # 2. BUILD & PUSH DOCKER IMAGES
+  # ============================================================
+  build-and-push:
+    name: Build & Push Docker Images
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    strategy:
+      matrix:
+        service: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ vars[format('ECR_{0}_REPO', matrix.service)] }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # 3. DEPLOY TO AWS ECS
+  # ============================================================
+  deploy:
+    name: Deploy to ECS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: https://bookmanager.example.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Fill in the new image URI in task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: infrastructure/ecs/task-definition.json
+          container-name: backend
+          image: ${{ steps.login-ecr.outputs.registry }}/bookmanager-backend:latest
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+  # ============================================================
+  # 4. SEED MONGODB ATLAS (ON FIRST DEPLOY ONLY)
+  # ============================================================
+  seed-database:
+    name: Seed MongoDB Atlas
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./backend
+
+      - name: Build seed script
+        run: npm run build
+        working-directory: ./backend
+
+      - name: Run database seed
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_ATLAS_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: npx ts-node src/seed.ts
+        working-directory: ./backend

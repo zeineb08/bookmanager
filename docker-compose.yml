@@ -1,0 +1,71 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: bookmanager-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: bookmanager
+    networks:
+      - bookmanager-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bookmanager-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongodb
+    environment:
+      PORT: 3000
+      MONGODB_URI: mongodb://mongodb:27017/bookmanager
+      JWT_SECRET: bookmanager_jwt_secret_key_2024_super_secure
+      JWT_EXPIRATION: 7d
+      CORS_ORIGIN: http://localhost:5173
+    volumes:
+      - ./backend/uploads:/app/uploads
+    networks:
+      - bookmanager-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bookmanager-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+    networks:
+      - bookmanager-network
+
+  mongo-express:
+    image: mongo-express:1
+    container_name: bookmanager-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongodb
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    networks:
+      - bookmanager-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  bookmanager-network:
+    driver: bridge
