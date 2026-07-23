@@ -16,6 +16,7 @@ const adminLinks = [
   { to: '/admin/books', icon: FiLayers, label: 'Manage Books' },
   { to: '/admin/users', icon: FiUsers, label: 'Manage Users' },
   { to: '/admin/borrowings', icon: FiBookOpen, label: 'Borrowings' },
+  { to: '/profile', icon: FiUser, label: 'Profile' },
 ];
 
 export default function Sidebar({ isOpen, onClose, userRole }) {
@@ -27,9 +28,7 @@ export default function Sidebar({ isOpen, onClose, userRole }) {
     navigate('/login');
   };
 
-  const links = userRole === 'ADMIN'
-    ? [...memberLinks, ...adminLinks]
-    : memberLinks;
+  const links = userRole === 'ADMIN' ? adminLinks : memberLinks;
 
   return (
     <aside

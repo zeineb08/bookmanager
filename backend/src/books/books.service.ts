@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Book, BookDocument } from './book.schema';
@@ -92,9 +92,12 @@ export class BooksService {
     const updateData: any = { ...updateBookDto };
 
     if (updateBookDto.totalCopies !== undefined) {
+      const borrowedCopies = book.totalCopies - book.availableCopies;
+      if (updateBookDto.totalCopies < borrowedCopies) {
+        throw new BadRequestException(`Total copies cannot be less than currently borrowed copies (${borrowedCopies})`);
+      }
       const diff = updateBookDto.totalCopies - book.totalCopies;
-      const newAvailable = book.availableCopies + diff;
-      updateData.availableCopies = newAvailable < 0 ? 0 : newAvailable;
+      updateData.availableCopies = book.availableCopies + diff;
     }
 
     const updated = await this.bookModel

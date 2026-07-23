@@ -10,7 +10,7 @@ import EmptyState from '../components/common/EmptyState';
 export default function Dashboard() {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const { items: books, loading: booksLoading } = useSelector((state) => state.books);
+  const { items: books, loading: booksLoading, total: totalBooks } = useSelector((state) => state.books);
   const { items: borrowings, loading: borrowLoading } = useSelector((state) => state.borrowings);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -27,7 +27,7 @@ export default function Dashboard() {
   const statsCards = [
     {
       title: 'Books in Library',
-      value: books.length || 0,
+      value: totalBooks || 0,
       icon: FiBook,
       color: 'bg-blue-500',
       link: '/books',

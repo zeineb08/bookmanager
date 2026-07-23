@@ -65,7 +65,7 @@ export class BorrowingsService {
       throw new ForbiddenException('You can only return your own borrowings');
     }
 
-    if (borrowing.status === 'RETURNED') {
+    if (borrowing.status === 'RETURNED' || borrowing.status === 'LATE') {
       throw new BadRequestException('Book has already been returned');
     }
 

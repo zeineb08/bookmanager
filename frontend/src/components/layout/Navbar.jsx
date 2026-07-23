@@ -17,11 +17,12 @@ export default function Navbar({ onMenuClick, user }) {
   const userMenuRef = useRef(null);
 
   useEffect(() => {
+    if (!user?._id) return;
     // Load notifications from localStorage
-    const saved = JSON.parse(localStorage.getItem('notifications') || '[]');
+    const saved = JSON.parse(localStorage.getItem(`notifications_${user._id}`) || '[]');
     setNotifications(saved);
     setUnreadCount(saved.filter(n => !n.read).length);
-  }, []);
+  }, [user?._id]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function Navbar({ onMenuClick, user }) {
 
   const addNotification = (type, message) => {
     const newNotif = {
-      id: Date.now(),
+      id: Date.now().toString(),
       type,
       message,
       time: new Date().toISOString(),
@@ -48,29 +49,37 @@ export default function Navbar({ onMenuClick, user }) {
     const updated = [newNotif, ...notifications].slice(0, 50);
     setNotifications(updated);
     setUnreadCount(updated.filter(n => !n.read).length);
-    localStorage.setItem('notifications', JSON.stringify(updated));
+    if (user?._id) {
+      localStorage.setItem(`notifications_${user._id}`, JSON.stringify(updated));
+    }
   };
 
   const markAllAsRead = () => {
     const updated = notifications.map(n => ({ ...n, read: true }));
     setNotifications(updated);
     setUnreadCount(0);
-    localStorage.setItem('notifications', JSON.stringify(updated));
+    if (user?._id) {
+      localStorage.setItem(`notifications_${user._id}`, JSON.stringify(updated));
+    }
   };
 
   const markAsRead = (id) => {
     const updated = notifications.map(n => 
-      n._id === id ? { ...n, read: true } : n
+      n.id === id ? { ...n, read: true } : n
     );
     setNotifications(updated);
     setUnreadCount(updated.filter(n => !n.read).length);
-    localStorage.setItem('notifications', JSON.stringify(updated));
+    if (user?._id) {
+      localStorage.setItem(`notifications_${user._id}`, JSON.stringify(updated));
+    }
   };
 
   const clearNotifications = () => {
     setNotifications([]);
     setUnreadCount(0);
-    localStorage.setItem('notifications', '[]');
+    if (user?._id) {
+      localStorage.removeItem(`notifications_${user._id}`);
+    }
     setShowNotifications(false);
   };
 
@@ -231,13 +240,15 @@ export default function Navbar({ onMenuClick, user }) {
                     <FiUser className="text-gray-400" />
                     My Profile
                   </button>
-                  <button
-                    onClick={() => { navigate('/my-borrowings'); setShowUserMenu(false); }}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
-                  >
-                    <FiBookOpen className="text-gray-400" />
-                    My Borrowings
-                  </button>
+                  {user?.role !== 'ADMIN' && (
+                    <button
+                      onClick={() => { navigate('/my-borrowings'); setShowUserMenu(false); }}
+                      className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                    >
+                      <FiBookOpen className="text-gray-400" />
+                      My Borrowings
+                    </button>
+                  )}
                   <button
                     onClick={() => { navigate('/profile'); setShowUserMenu(false); }}
                     className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
