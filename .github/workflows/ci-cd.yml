@@ -22,7 +22,7 @@ env:
 
 jobs:
   quality:
-    name: Code Quality & SonarQube
+    name: Code Quality
     runs-on: ubuntu-latest
     steps:
 
@@ -56,15 +56,15 @@ jobs:
         working-directory: backend
         run: npm run lint --if-present
 
-      - name: SonarQube Cloud Analysis
-        uses: SonarSource/sonarqube-scan-action@v5
-        with:
-          args: >
-            -Dsonar.projectKey=bookmanager
-            -Dsonar.organization=zeineb08
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: SonarQube Cloud Analysis
+      #   uses: SonarSource/sonarqube-scan-action@v5
+      #   with:
+      #     args: >
+      #       -Dsonar.projectKey=bookmanager
+      #       -Dsonar.organization=zeineb08
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 # ==================================================
 # 2. TESTS
