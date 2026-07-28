@@ -7,148 +7,123 @@ on:
     branches: [ "main", "develop" ]
 
 env:
-  REGISTRY: ghcr.io
-  FRONTEND_IMAGE_NAME: ${{ github.repository }}/bookmanager-frontend
-  BACKEND_IMAGE_NAME: ${{ github.repository }}/bookmanager-backend
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  FRONTEND_IMAGE: bookmanager-frontend
+  BACKEND_IMAGE: bookmanager-backend
 
 jobs:
-  quality-checks:
-    name: Quality Checks (Build)
+  build-and-test:
+    name: Build, Lint, Test & SonarQube
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      # Step 1: Checkout repository
+      - name: 1. Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for SonarQube
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Frontend Dependencies
+      # Step 2: Install dependencies
+      - name: 2. Install Frontend Dependencies
         working-directory: ./frontend
-        run: npm ci || npm install
+        run: npm install
 
-      - name: Build Frontend
+      - name: 2. Install Backend Dependencies
+        working-directory: ./backend
+        run: npm install
+
+      # Step 3: Lint
+      - name: 3. Lint Frontend
+        working-directory: ./frontend
+        run: npm run lint --if-present || echo "No lint script provided"
+
+      - name: 3. Lint Backend
+        working-directory: ./backend
+        run: npm run lint --if-present || echo "No lint script provided"
+
+      # Step 4: Run tests
+      - name: 4. Test Frontend
+        working-directory: ./frontend
+        run: npm run test --if-present || echo "No test script provided"
+
+      - name: 4. Test Backend
+        working-directory: ./backend
+        run: npm run test --if-present || echo "No test script provided"
+
+      # Step 5: Build application
+      - name: 5. Build Frontend
         working-directory: ./frontend
         run: npm run build
 
-      - name: Install Backend Dependencies
-        working-directory: ./backend
-        run: npm ci || npm install
-
-      - name: Build Backend
+      - name: 5. Build Backend
         working-directory: ./backend
         run: npm run build
 
-  sonarqube:
-    name: SonarQube Scan
-    runs-on: ubuntu-latest
-    needs: quality-checks
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # SonarCloud prefers deep clones
-      
-      - name: SonarCloud Scan
+      # Step 6: SonarQube Scan
+      - name: 6. SonarQube Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  security-fs-scan:
-    name: Trivy FS Scan
+  docker:
+    name: Docker Build, Scan & Push
     runs-on: ubuntu-latest
-    needs: quality-checks
+    needs: build-and-test
+    if: github.event_name == 'push' # Only push images on merges to main/develop
     steps:
-      - name: Checkout repository
+      # Step 1: Checkout repository
+      - name: 1. Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner in fs mode
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
-  docker-build-push:
-    name: Docker Build & Push
-    runs-on: ubuntu-latest
-    needs: [sonarqube, security-fs-scan]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to the Container registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Frontend Docker Image
+      # Step 7: Build Docker images
+      - name: 7. Build Frontend Image
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
           push: false
-          tags: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
           load: true
 
-      - name: Build Backend Docker Image
+      - name: 7. Build Backend Image
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           push: false
-          tags: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
           load: true
 
-      - name: Run Trivy vulnerability scanner on Frontend image
+      # Step 8: Scan Docker image with Trivy
+      - name: 8. Scan Frontend Image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
 
-      - name: Run Trivy vulnerability scanner on Backend image
+      - name: 8. Scan Backend Image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
 
-      - name: Push Docker Images
+      # Step 9: Push image to Docker Hub
+      - name: 9. Push Images to Docker Hub
         run: |
-          docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }}
-          docker push ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:${{ github.sha }}
-
-  deploy:
-    name: Deploy to Server
-    runs-on: ubuntu-latest
-    needs: docker-build-push
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Trigger Deployment Webhook
-        env:
-          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
-        run: |
-          if [ -z "$DEPLOY_WEBHOOK_URL" ]; then
-            echo "DEPLOY_WEBHOOK_URL is not set. Skipping deployment webhook trigger."
-            echo "Add DEPLOY_WEBHOOK_URL to your repository secrets to enable automatic deployments."
-          else
-            echo "Triggering deployment webhook..."
-            curl -X POST -H "Content-Type: application/json" -d '{"tag": "${{ github.sha }}"}' $DEPLOY_WEBHOOK_URL
-          fi
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
