@@ -10,6 +10,10 @@ on:
       - main
       - develop
 
+permissions:
+  contents: read
+  security-events: write
+
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   FRONTEND_IMAGE: bookmanager-frontend
@@ -181,7 +185,7 @@ jobs:
           exit-code: 0
 
       - name: Upload Trivy FS Report to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-fs.sarif
       # ------------------------------
@@ -198,7 +202,7 @@ jobs:
           exit-code: 0
 
       - name: Upload Trivy Frontend Report to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-frontend.sarif
 
@@ -213,7 +217,7 @@ jobs:
           exit-code: 0
 
       - name: Upload Trivy Backend Report to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-backend.sarif
       # ------------------------------
