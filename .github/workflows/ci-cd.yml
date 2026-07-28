@@ -1,5 +1,6 @@
 name: CI/CD Pipeline
 
+
 on:
   push:
     branches:
@@ -11,20 +12,27 @@ on:
       - main
       - develop
 
+
+
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   FRONTEND_IMAGE: bookmanager-frontend
   BACKEND_IMAGE: bookmanager-backend
 
-# ======================================
+
+
+# ==================================================
 # 1. CODE QUALITY
-# ======================================
+# ==================================================
 
 jobs:
 
   quality:
+
     name: Code Quality & SonarQube
+
     runs-on: ubuntu-latest
+
 
     steps:
 
@@ -34,103 +42,193 @@ jobs:
           fetch-depth: 0
 
 
+
       - name: Setup Node.js
+
         uses: actions/setup-node@v4
+
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
 
 
       - name: Install Frontend dependencies
+
         working-directory: frontend
+
         run: npm ci
+
 
 
       - name: Install Backend dependencies
+
         working-directory: backend
+
         run: npm ci
+
 
 
       - name: Frontend Lint
+
         working-directory: frontend
+
         run: npm run lint --if-present
+
 
 
       - name: Backend Lint
+
         working-directory: backend
+
         run: npm run lint --if-present
 
 
+
       - name: SonarQube Cloud Analysis
+
         uses: SonarSource/sonarqube-scan-action@v5
+
         env:
+
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-# ======================================
+
+
+
+
+# ==================================================
 # 2. TESTS
-# ======================================
+# ==================================================
+
 
   tests:
+
+
     name: Automated Tests
+
     runs-on: ubuntu-latest
+
     needs: quality
 
+
+
     steps:
 
+
       - name: Checkout repository
+
         uses: actions/checkout@v4
 
+
+
       - name: Setup Node.js
+
         uses: actions/setup-node@v4
+
         with:
+
           node-version: 20
+
           cache: npm
+
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
+
 
       - name: Install Frontend dependencies
+
         working-directory: frontend
+
         run: npm ci
+
+
 
       - name: Install Backend dependencies
+
         working-directory: backend
+
         run: npm ci
 
+
+
       - name: Frontend Tests
+
         working-directory: frontend
-        run: npm test -- --watchAll=false || true
+
+        run: npm test -- --watchAll=false
+
+
 
       - name: Backend Tests
-        working-directory: backend
-        run: npm test || true
 
-# ======================================
+        working-directory: backend
+
+        run: npm test
+
+
+
+
+
+# ==================================================
 # 3. BUILD APPLICATION
-# ======================================
+# ==================================================
+
+
   build:
 
-    name: Build Application
+
+    name: Build React & NestJS
+
     runs-on: ubuntu-latest
+
     needs: tests
+
+
 
     steps:
 
+
       - name: Checkout repository
+
         uses: actions/checkout@v4
 
 
+
       - name: Setup Node.js
+
         uses: actions/setup-node@v4
+
         with:
+
           node-version: 20
+
           cache: npm
+
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
 
 
       - name: Build Frontend
 
         working-directory: frontend
+
         run: |
+
           npm ci
+
           npm run build
+
+
 
       - name: Build Backend
 
@@ -145,27 +243,58 @@ jobs:
 
 
 
-# ======================================
-# 4. DOCKER BUILD
-# ======================================
+
+# ==================================================
+# 4. DOCKER BUILD + SECURITY
+# ==================================================
 
 
-  docker-build:
+  docker:
 
-    name: Build Docker Images
+
+    name: Docker Build Scan & Push
+
     runs-on: ubuntu-latest
+
     needs: build
+
+
+
+    if: github.event_name == 'push'
+
 
 
     steps:
 
 
+
       - name: Checkout repository
+
         uses: actions/checkout@v4
 
 
 
-      - name: Build Frontend Docker Image
+      - name: Login Docker Hub
+
+        uses: docker/login-action@v3
+
+        with:
+
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+
+
+
+
+
+      # ------------------------------
+      # Build Images
+      # ------------------------------
+
+
+      - name: Build Frontend Image
 
         uses: docker/build-push-action@v5
 
@@ -173,18 +302,21 @@ jobs:
 
           context: ./frontend
 
-          push: false
-
           load: true
 
-          tags:
+          push: false
+
+          tags: |
 
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
 
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
 
 
 
-      - name: Build Backend Docker Image
+
+
+      - name: Build Backend Image
 
         uses: docker/build-push-action@v5
 
@@ -192,40 +324,24 @@ jobs:
 
           context: ./backend
 
-          push: false
-
           load: true
 
-          tags:
+          push: false
+
+          tags: |
 
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
 
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
 
 
 
 
 
-# ======================================
-# 5. SECURITY SCAN
-# ======================================
 
-
-  security:
-
-    name: Trivy Security Scan
-
-    runs-on: ubuntu-latest
-
-    needs: docker-build
-
-
-
-    steps:
-
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      # ------------------------------
+      # Trivy Filesystem Scan
+      # ------------------------------
 
 
       - name: Trivy Filesystem Scan
@@ -245,17 +361,11 @@ jobs:
 
 
 
-      - name: Login Docker Hub
-
-        uses: docker/login-action@v3
-
-        with:
-
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
 
+      # ------------------------------
+      # Trivy Docker Scan
+      # ------------------------------
 
 
       - name: Scan Frontend Image
@@ -264,15 +374,14 @@ jobs:
 
         with:
 
-          image-ref:
-
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
 
           format: table
 
+          vuln-type: os,library
+
           exit-code: 0
 
-          vuln-type: os,library
 
 
 
@@ -283,93 +392,40 @@ jobs:
 
         with:
 
-          image-ref:
-
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
 
           format: table
 
-          exit-code: 0
-
           vuln-type: os,library
 
+          exit-code: 0
 
 
 
 
-# ======================================
-# 6. PUSH IMAGES
-# ======================================
 
 
-  push:
-
-    name: Push Images to Docker Hub
-
-    runs-on: ubuntu-latest
-
-    needs: security
-
-    if: github.event_name == 'push'
+      # ------------------------------
+      # Push Images
+      # ------------------------------
 
 
+      - name: Push Frontend Image
 
-    steps:
+        run: |
 
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
 
-      - name: Checkout repository
-
-        uses: actions/checkout@v4
-
-
-
-      - name: Login Docker Hub
-
-        uses: docker/login-action@v3
-
-        with:
-
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-
-
-      - name: Build and Push Frontend
-
-        uses: docker/build-push-action@v5
-
-        with:
-
-          context: ./frontend
-
-          push: true
-
-          tags:
-
-            |
-
-              ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
-
-              ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:latest
 
 
 
 
-      - name: Build and Push Backend
 
-        uses: docker/build-push-action@v5
+      - name: Push Backend Image
 
-        with:
+        run: |
 
-          context: ./backend
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
 
-          push: true
-
-          tags:
-
-            |
-
-              ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-
-              ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
