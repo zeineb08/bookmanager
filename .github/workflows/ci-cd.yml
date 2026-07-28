@@ -177,13 +177,13 @@ jobs:
           scan-ref: .
           format: sarif
           output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
           exit-code: 0
 
-      - name: Upload Trivy FS Report
-        uses: actions/upload-artifact@v4
+      - name: Upload Trivy FS Report to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          name: trivy-fs-report
-          path: trivy-fs.sarif
+          sarif_file: trivy-fs.sarif
       # ------------------------------
       # Trivy Docker Scan
       # ------------------------------
@@ -194,13 +194,13 @@ jobs:
           format: sarif
           output: trivy-frontend.sarif
           vuln-type: os,library
+          severity: CRITICAL,HIGH
           exit-code: 0
 
-      - name: Upload Trivy Frontend Report
-        uses: actions/upload-artifact@v4
+      - name: Upload Trivy Frontend Report to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          name: trivy-frontend-report
-          path: trivy-frontend.sarif
+          sarif_file: trivy-frontend.sarif
 
       - name: Scan Backend Image
         uses: aquasecurity/trivy-action@master
@@ -209,13 +209,13 @@ jobs:
           format: sarif
           output: trivy-backend.sarif
           vuln-type: os,library
+          severity: CRITICAL,HIGH
           exit-code: 0
 
-      - name: Upload Trivy Backend Report
-        uses: actions/upload-artifact@v4
+      - name: Upload Trivy Backend Report to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          name: trivy-backend-report
-          path: trivy-backend.sarif
+          sarif_file: trivy-backend.sarif
       # ------------------------------
       # Push Images
       # ------------------------------
