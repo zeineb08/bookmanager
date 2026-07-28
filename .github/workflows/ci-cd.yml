@@ -59,6 +59,10 @@ jobs:
 
       - name: SonarQube Cloud Analysis
         uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          args: >
+            -Dsonar.projectKey=bookmanager
+            -Dsonar.organization=zeineb08
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
