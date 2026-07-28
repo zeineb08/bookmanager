@@ -16,7 +16,7 @@ import AdminBooks from './pages/AdminBooks';
 import AdminUsers from './pages/AdminUsers';
 import AdminBorrowings from './pages/AdminBorrowings';
 
-function PrivateRoute({ children, adminOnly = false }) {
+function PrivateRoute({ children, adminOnly = false, memberOnly = false }) {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   if (!isAuthenticated) {
@@ -27,17 +27,31 @@ function PrivateRoute({ children, adminOnly = false }) {
     return <Navigate to="/dashboard" />;
   }
 
+  if (memberOnly && user?.role === 'ADMIN') {
+    return <Navigate to="/admin" />;
+  }
+
   return <Layout>{children}</Layout>;
 }
 
 function PublicRoute({ children }) {
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to={user?.role === 'ADMIN' ? '/admin' : '/dashboard'} />;
   }
 
   return children;
+}
+
+function RootRoute() {
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  return <Navigate to={user?.role === 'ADMIN' ? '/admin' : '/dashboard'} />;
 }
 
 export default function App() {
@@ -77,7 +91,7 @@ export default function App() {
       <Route
         path="/dashboard"
         element={
-          <PrivateRoute>
+          <PrivateRoute memberOnly>
             <Dashboard />
           </PrivateRoute>
         }
@@ -85,7 +99,7 @@ export default function App() {
       <Route
         path="/books"
         element={
-          <PrivateRoute>
+          <PrivateRoute memberOnly>
             <Books />
           </PrivateRoute>
         }
@@ -93,7 +107,7 @@ export default function App() {
       <Route
         path="/books/:id"
         element={
-          <PrivateRoute>
+          <PrivateRoute memberOnly>
             <BookDetail />
           </PrivateRoute>
         }
@@ -101,7 +115,7 @@ export default function App() {
       <Route
         path="/my-borrowings"
         element={
-          <PrivateRoute>
+          <PrivateRoute memberOnly>
             <MyBorrowings />
           </PrivateRoute>
         }
@@ -150,8 +164,8 @@ export default function App() {
       />
 
       {/* Default Route */}
-      <Route path="/" element={<Navigate to="/dashboard" />} />
-      <Route path="*" element={<Navigate to="/dashboard" />} />
+      <Route path="/" element={<RootRoute />} />
+      <Route path="*" element={<RootRoute />} />
     </Routes>
   );
 }

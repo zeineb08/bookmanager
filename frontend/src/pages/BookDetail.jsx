@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, Link } from 'react-router-dom';
 import { fetchBookById } from '../store/bookSlice';
-import { borrowBook } from '../store/borrowingSlice';
+import { borrowBook, returnBook } from '../store/borrowingSlice';
 import { fetchUserBorrowings } from '../store/borrowingSlice';
 import api from '../utils/api';
 import {
@@ -56,6 +56,15 @@ export default function BookDetail() {
       dispatch(fetchBookById(id));
       dispatch(fetchUserBorrowings(user._id));
     });
+  };
+
+  const handleReturn = () => {
+    if (activeBorrowing) {
+      dispatch(returnBook(activeBorrowing._id)).then(() => {
+        dispatch(fetchBookById(id));
+        dispatch(fetchUserBorrowings(user._id));
+      });
+    }
   };
 
   const handleSubmitReview = async (e) => {
@@ -112,15 +121,14 @@ export default function BookDetail() {
         {/* Book Cover & Actions */}
         <div className="lg:col-span-1">
           <div className="card">
-            <div className="h-64 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg flex items-center justify-center mb-4 overflow-hidden">
+            <div className="bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg flex items-center justify-center mb-4 overflow-hidden p-2 min-h-[16rem]">
               {book.coverImage ? (
                 <img
                   src={book.coverImage}
                   alt={book.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-auto object-contain rounded max-h-[500px]"
                   onError={(e) => {
                     e.target.style.display = 'none';
-                    e.target.parentElement.innerHTML = `<div class="text-primary-600"><FiBook className="text-6xl" /></div>`;
                   }}
                 />
               ) : (
@@ -129,19 +137,18 @@ export default function BookDetail() {
             </div>
 
             <button
-              onClick={handleBorrow}
-              disabled={!isAvailable || !!activeBorrowing || borrowLoading}
-              className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                activeBorrowing
-                  ? 'bg-green-100 text-green-700 cursor-default'
+              onClick={activeBorrowing ? handleReturn : handleBorrow}
+              disabled={(!isAvailable && !activeBorrowing) || borrowLoading}
+              className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${activeBorrowing
+                  ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                   : isAvailable
-                  ? 'btn-primary'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
+                    ? 'btn-primary'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
             >
               {activeBorrowing ? (
                 <>
-                  <FiCheck /> Already Borrowed
+                  <FiCheck /> Return Book
                 </>
               ) : isAvailable ? (
                 <>
@@ -189,11 +196,10 @@ export default function BookDetail() {
                 {[1, 2, 3, 4, 5].map((star) => (
                   <FiStar
                     key={star}
-                    className={`${
-                      star <= Math.round(reviews.averageRating)
+                    className={`${star <= Math.round(reviews.averageRating)
                         ? 'text-amber-400 fill-amber-400'
                         : 'text-gray-300'
-                    }`}
+                      }`}
                   />
                 ))}
                 <span className="ml-1 text-sm text-gray-500">
@@ -215,7 +221,7 @@ export default function BookDetail() {
             </h2>
 
             {/* Review Form */}
-            {!activeBorrowing && (
+            {user && (
               <form onSubmit={handleSubmitReview} className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <h3 className="font-medium text-gray-900 mb-3">Write a Review</h3>
                 <div className="flex items-center gap-1 mb-3">
@@ -227,11 +233,10 @@ export default function BookDetail() {
                       className="focus:outline-none"
                     >
                       <FiStar
-                        className={`text-xl ${
-                          star <= newReview.rating
+                        className={`text-xl ${star <= newReview.rating
                             ? 'text-amber-400 fill-amber-400'
                             : 'text-gray-300'
-                        }`}
+                          }`}
                       />
                     </button>
                   ))}
@@ -280,11 +285,10 @@ export default function BookDetail() {
                         {[1, 2, 3, 4, 5].map((star) => (
                           <FiStar
                             key={star}
-                            className={`text-sm ${
-                              star <= review.rating
+                            className={`text-sm ${star <= review.rating
                                 ? 'text-amber-400 fill-amber-400'
                                 : 'text-gray-300'
-                            }`}
+                              }`}
                           />
                         ))}
                       </div>

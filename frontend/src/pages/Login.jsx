@@ -7,7 +7,7 @@ import { FiBook, FiMail, FiLock, FiAlertCircle } from 'react-icons/fi';
 export default function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
+  const { loading, error, isAuthenticated, user } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -15,8 +15,10 @@ export default function Login() {
   });
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/dashboard');
-  }, [isAuthenticated, navigate]);
+    if (isAuthenticated) {
+      navigate(user?.role === 'ADMIN' ? '/admin' : '/dashboard');
+    }
+  }, [isAuthenticated, navigate, user]);
 
   useEffect(() => {
     return () => dispatch(clearError());

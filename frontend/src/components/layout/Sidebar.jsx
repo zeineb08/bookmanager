@@ -5,14 +5,14 @@ import { logoutUser } from '../../store/authSlice';
 import { useNavigate } from 'react-router-dom';
 
 const memberLinks = [
-  { to: '/dashboard', icon: FiGrid, label: 'Dashboard' },
+  { to: '/dashboard', icon: FiGrid, label: 'Dashboard', end: true },
   { to: '/books', icon: FiBook, label: 'Browse Books' },
   { to: '/my-borrowings', icon: FiBookOpen, label: 'My Borrowings' },
   { to: '/profile', icon: FiUser, label: 'Profile' },
 ];
 
 const adminLinks = [
-  { to: '/admin', icon: FiBarChart2, label: 'Admin Dashboard' },
+  { to: '/admin', icon: FiBarChart2, label: 'Admin Dashboard', end: true },
   { to: '/admin/books', icon: FiLayers, label: 'Manage Books' },
   { to: '/admin/users', icon: FiUsers, label: 'Manage Users' },
   { to: '/admin/borrowings', icon: FiBookOpen, label: 'Borrowings' },
@@ -54,6 +54,7 @@ export default function Sidebar({ isOpen, onClose, userRole }) {
             key={link.to}
             to={link.to}
             onClick={onClose}
+            end={link.end}
             className={({ isActive }) =>
               `sidebar-link ${isActive ? 'active' : ''}`
             }
