@@ -188,6 +188,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-fs.sarif
+          category: trivy-filesystem
       # ------------------------------
       # Trivy Docker Scan
       # ------------------------------
@@ -205,7 +206,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-frontend.sarif
-
+          category: trivy-frontend-image
       - name: Scan Backend Image
         uses: aquasecurity/trivy-action@master
         with:
@@ -220,6 +221,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-backend.sarif
+          category: trivy-backend-image
       # ------------------------------
       # Push Images
       # ------------------------------
