@@ -35,3 +35,37 @@ backend/uploads/
 # OS files
 .DS_Store
 Thumbs.db
+
+# ─── Terraform ────────────────────────────────────────────────
+# Secret variable files – NEVER commit these
+*.tfvars
+*.tfvars.json
+
+# Local state files (use remote state in production)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform lock file (commit this for reproducible builds, optional)
+# .terraform.lock.hcl
+
+# Plugin cache and downloaded providers
+**/.terraform/
+.terraform.lock.hcl
+
+# Crash log from Terraform
+crash.log
+crash.*.log
+
+# Override files (used for local customization)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Saved plan files
+*.tfplan
+
+# OCI API private key (NEVER commit)
+*.pem
+oci_api_key*
