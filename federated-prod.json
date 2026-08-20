@@ -1,0 +1,6 @@
+﻿{
+  "name": "github-production-oidc",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:134334092/1308514692:environment:production",
+  "audiences": ["api://AzureADTokenExchange"]
+}

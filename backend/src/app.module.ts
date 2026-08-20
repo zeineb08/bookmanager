@@ -14,7 +14,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthorsModule } from './authors/authors.module';
 import { CategoriesModule } from './categories/categories.module';
-import { HealthController } from './health.controller';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
