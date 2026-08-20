@@ -292,7 +292,10 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          # creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_98FA4F7E414F4ECD8BD0AE4D92351547 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_08DA26A38E0C4A66BC9DFA96244D29C9 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_7B55B4CD32BB4772B7FB14B1F4E47EAF }}
 
       # --- Deploy Backend: Update Container App with new image ---
       - name: Deploy Backend to Container App
