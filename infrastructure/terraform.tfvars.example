@@ -1,0 +1,31 @@
+# ==============================================================================
+# BookManager — Terraform Variables Example
+# ==============================================================================
+# Copy this file to terraform.tfvars and fill in the values.
+# DO NOT commit terraform.tfvars to version control.
+# ==============================================================================
+
+# General
+project_name = "bookmanager"
+environment  = "staging"
+location     = "westeurope"
+
+# Secrets (use TF_VAR_* env vars for CI/CD instead of this file)
+mongodb_uri = "mongodb+srv://user:password@cluster.mongodb.net/bookmanager"
+jwt_secret  = "CHANGE_ME_to_a_secure_random_string"
+
+# Container App sizing
+backend_container_cpu    = 0.5
+backend_container_memory = "1Gi"
+backend_min_replicas     = 1
+backend_max_replicas     = 5
+backend_port             = 3000
+
+# JWT
+jwt_expiration = "7d"
+
+# Additional tags
+tags = {
+  Owner = "zeineb"
+  Team  = "bookmanager"
+}

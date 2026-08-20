@@ -14,6 +14,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthorsModule } from './authors/authors.module';
 import { CategoriesModule } from './categories/categories.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { CategoriesModule } from './categories/categories.module';
     AuthorsModule,
     CategoriesModule,
   ],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_GUARD,
