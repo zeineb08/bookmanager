@@ -184,7 +184,7 @@ resource "azurerm_container_app" "backend" {
       liveness_probe {
         transport = "HTTP"
         port      = var.backend_port
-        path      = "/api"
+        path      = "/health"
 
         initial_delay    = 10
         interval_seconds = 30
@@ -196,7 +196,7 @@ resource "azurerm_container_app" "backend" {
       readiness_probe {
         transport = "HTTP"
         port      = var.backend_port
-        path      = "/api"
+        path      = "/health"
 
         interval_seconds = 10
         timeout          = 5
